@@ -1,0 +1,442 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Unbounded:wght@400;600;800&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #000000;
+  --surface: #111111;
+  --surface-2: #1a1a1a;
+  --border: #2a2a2a;
+  --text: #f0f0f0;
+  --text-dim: #888888;
+  --accent: #ffd600;
+  --accent-glow: rgba(255, 214, 0, 0.3);
+  --accent-2: #ffd600;
+  --accent-3: #ffd600;
+}
+
+body {
+  font-family: 'Space Mono', monospace;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Override Leaflet tiles for dark aesthetic */
+.leaflet-container { background: var(--bg) !important; }
+.leaflet-control-zoom { border: none !important; }
+.leaflet-control-zoom a {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 18px !important;
+}
+.leaflet-control-zoom a:hover {
+  background: var(--surface-2) !important;
+}
+
+/* Header overlay */
+.header {
+  position: fixed;
+  top: 0;
+  left: 60px;
+  right: 0;
+  z-index: 1000;
+  padding: 20px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.logo-block {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+.logo-text {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+
+.logo-text span {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.stats-bar {
+  pointer-events: auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 8px 18px;
+  backdrop-filter: blur(12px);
+}
+
+.stats-bar .pulse {
+  width: 8px;
+  height: 8px;
+  background: var(--accent-3);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 229, 160, 0.4); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(0, 229, 160, 0); }
+}
+
+.stats-bar .count {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.stats-bar .label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Sidebar — top cities */
+.sidebar {
+  position: fixed;
+  bottom: 28px;
+  left: 28px;
+  z-index: 1000;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  min-width: 220px;
+  backdrop-filter: blur(12px);
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.3s;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sidebar h3 {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+.city-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.city-row:last-child { border-bottom: none; }
+
+.city-row .rank {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 22px;
+}
+.city-row .rank.top { color: var(--accent-2); }
+
+.city-row .name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.city-row .bar-wrap {
+  width: 60px;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  margin: 0 10px;
+}
+.city-row .bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.city-row .cnt {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* Add pin button */
+.add-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 1000;
+  pointer-events: auto;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 50px;
+  padding: 14px 24px;
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 24px var(--accent-glow);
+  transition: transform 0.2s, box-shadow 0.2s;
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.5s;
+}
+.add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px var(--accent-glow);
+}
+.add-btn svg { width: 18px; height: 18px; }
+
+/* Form modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  width: 380px;
+  max-width: 90vw;
+  animation: modalIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal h2 {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.modal p.subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 22px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.field input, .field textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field input:focus, .field textarea:focus {
+  border-color: var(--accent);
+}
+.field textarea { resize: vertical; min-height: 70px; }
+
+.field .hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-cancel:hover { background: var(--surface-2); }
+
+.btn-submit {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #000;
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-submit:hover { opacity: 0.9; }
+
+/* Custom popup */
+.leaflet-popup-content-wrapper {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  color: var(--text) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+}
+.leaflet-popup-tip { background: var(--surface) !important; }
+.leaflet-popup-content { margin: 14px 16px !important; font-family: 'Space Mono', monospace !important; }
+
+.pin-popup .nick {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent);
+}
+.pin-popup .city {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.pin-popup .comment {
+  font-size: 13px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+/* Cluster styles */
+.marker-cluster {
+  background: transparent !important;
+}
+.marker-cluster div {
+  background: var(--accent) !important;
+  color: #000 !important;
+  font-family: 'Unbounded', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  width: 40px !important;
+  height: 40px !important;
+  margin-left: -4px !important;
+  margin-top: -4px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 0 20px var(--accent-glow) !important;
+  border: 2px solid rgba(255,255,255,0.15) !important;
+}
+.marker-cluster-small div { background: var(--accent) !important; }
+.marker-cluster-medium div { background: #e6c000 !important; width: 48px !important; height: 48px !important; font-size: 14px !important; }
+.marker-cluster-large div { background: #ccaa00 !important; width: 56px !important; height: 56px !important; font-size: 15px !important; }
+
+/* Custom pin marker */
+.custom-pin {
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--accent-glow);
+  transition: transform 0.2s;
+}
+.custom-pin:hover { transform: scale(1.4); }
+
+.placing-mode .leaflet-container { cursor: crosshair !important; }
+
+.place-hint {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1500;
+  background: var(--accent);
+  color: #000;
+  font-family: 'Unbounded', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 50px;
+  box-shadow: 0 4px 20px var(--accent-glow);
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .header { padding: 14px 16px; }
+  .logo-text { font-size: 16px; }
+  .sidebar { left: 14px; bottom: 90px; min-width: 180px; padding: 14px 16px; }
+  .add-btn { right: 14px; bottom: 14px; padding: 12px 20px; font-size: 13px; }
+  .modal { padding: 24px; width: 340px; }
+}

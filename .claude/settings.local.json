@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm add:*)",
+      "Bash(npx tsc:*)",
+      "Bash(cp /Users/iliaborisenko/Downloads/comigration-map.html /dev/null)",
+      "Bash(ls /Users/iliaborisenko/Downloads/*.png /Users/iliaborisenko/Downloads/*.jpg /Users/iliaborisenko/Downloads/*.svg /Users/iliaborisenko/Downloads/*.webp)",
+      "Bash(ls /Users/iliaborisenko/Downloads/*.png /Users/iliaborisenko/Downloads/*.jpg /Users/iliaborisenko/Downloads/*.webp)",
+      "Bash(ls /Users/iliaborisenko/Downloads/*comigra* /Users/iliaborisenko/Downloads/*Comigra* /Users/iliaborisenko/Downloads/*COMIGRA* /Users/iliaborisenko/Downloads/*logo* /Users/iliaborisenko/Downloads/*Logo*)",
+      "Bash(git init:*)",
+      "Bash(git remote:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

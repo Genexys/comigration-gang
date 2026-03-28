@@ -1,0 +1,15 @@
+{
+  "name": "comigration-gang",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:client": "cd client && pnpm dev",
+    "dev:server": "cd server && pnpm dev",
+    "dev": "concurrently -n client,server -c cyan,yellow \"pnpm dev:client\" \"pnpm dev:server\"",
+    "build": "cd client && pnpm build && cd ../server && pnpm build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "packageManager": "pnpm@9.5.0+sha1.8c155dc114e1689d18937974f6571e0ceee66f1d"
+}
