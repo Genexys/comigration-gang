@@ -86,6 +86,7 @@ body {
   display: flex;
   gap: 6px;
   align-items: center;
+  white-space: nowrap;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 50px;
@@ -434,9 +435,13 @@ body {
 }
 
 @media (max-width: 600px) {
-  .header { padding: 14px 16px; }
-  .logo-text { font-size: 16px; }
+  .header { padding: 14px 16px; left: 50px; }
+  .logo-text { font-size: 15px; }
+  .logo-icon { width: 34px; height: 34px; }
+  .stats-bar { padding: 6px 12px; }
+  .stats-bar .count { font-size: 13px; }
+  .stats-bar .label { font-size: 11px; }
   .sidebar { left: 14px; bottom: 90px; min-width: 180px; padding: 14px 16px; }
   .add-btn { right: 14px; bottom: 14px; padding: 12px 20px; font-size: 13px; }
-  .modal { padding: 24px; width: 340px; }
+  .modal { padding: 24px; width: calc(100vw - 32px); }
 }
