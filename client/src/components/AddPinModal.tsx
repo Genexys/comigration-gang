@@ -16,6 +16,8 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
   const [nickError, setNickError] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileError, setTurnstileError] = useState(false);
+  const [consented, setConsented] = useState(false);
+  const [consentError, setConsentError] = useState(false);
   const nickRef = useRef<HTMLInputElement>(null);
 
   const nickExists = nickname.trim().length >= 2 &&
@@ -28,6 +30,8 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
       setNickError(false);
       setTurnstileToken(null);
       setTurnstileError(false);
+      setConsented(false);
+      setConsentError(false);
       setTimeout(() => nickRef.current?.focus(), 100);
     }
   }, [open]);
@@ -41,6 +45,10 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
     }
     if (TURNSTILE_SITE_KEY && !turnstileToken) {
       setTurnstileError(true);
+      return;
+    }
+    if (!consented) {
+      setConsentError(true);
       return;
     }
     onSubmit(trimmed, comment.trim(), turnstileToken);
@@ -102,6 +110,20 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
             )}
           </div>
         )}
+        <label className={`consent-check${consentError ? " consent-error" : ""}`}>
+          <input
+            type="checkbox"
+            checked={consented}
+            onChange={(e) => { setConsented(e.target.checked); setConsentError(false); }}
+          />
+          <span>
+            Соглашаюсь с{" "}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer">
+              политикой конфиденциальности
+            </a>
+            {" "}— ник, геолокация и IP сохранятся на сервере
+          </span>
+        </label>
         <div className="modal-actions">
           <button className="btn-cancel" onClick={onClose}>
             Отмена

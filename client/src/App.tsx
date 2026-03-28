@@ -8,6 +8,7 @@ import { usePins } from "./hooks/usePins";
 import "./App.css";
 
 const Admin = lazy(() => import("./pages/Admin"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 
 function MapPage() {
   const { pins, loading, addPin } = usePins();
@@ -104,6 +105,14 @@ export default function App() {
           element={
             <Suspense fallback={<div style={{ background: "var(--bg)", minHeight: "100vh" }} />}>
               <Admin />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <Suspense fallback={<div style={{ background: "var(--bg)", minHeight: "100vh" }} />}>
+              <Privacy />
             </Suspense>
           }
         />

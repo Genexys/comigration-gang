@@ -45,6 +45,22 @@ async function start() {
   const db = client.db();
   app.locals.db = db;
 
+  // TTL index: auto-delete banned_ips after 1 year
+  await db.collection("banned_ips").createIndex(
+    { bannedAt: 1 },
+    { expireAfterSeconds: 365 * 24 * 60 * 60, background: true }
+  );
+
+  // Anonymize IPs in pins older than 90 days (run at startup)
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const anonResult = await db.collection("pins").updateMany(
+    { createdAt: { $lt: ninetyDaysAgo }, ip: { $exists: true } },
+    { $unset: { ip: "" } }
+  );
+  if (anonResult.modifiedCount > 0) {
+    console.log(`Anonymized IPs for ${anonResult.modifiedCount} old pins`);
+  }
+
   app.use("/api/pins", pinsRouter);
   app.use("/api/admin", adminRouter);
 

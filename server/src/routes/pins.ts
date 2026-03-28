@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { Db, Collection } from "mongodb";
 import { PinDoc, toPublic } from "../models/Pin.js";
 import { pinRateLimit } from "../middleware/rateLimit.js";
+import { containsProfanity } from "../utils/profanity.js";
 
 export const pinsRouter = Router();
 
@@ -134,6 +135,12 @@ pinsRouter.post("/", pinRateLimit, async (req: Request, res: Response) => {
     // Sanitize
     const cleanNick = stripHtml(nickname).slice(0, 30);
     const cleanComment = typeof comment === "string" ? stripHtml(comment).slice(0, 200) : "";
+
+    // Profanity filter
+    if (containsProfanity(cleanNick) || containsProfanity(cleanComment)) {
+      res.status(400).json({ error: "Содержит недопустимые слова" });
+      return;
+    }
 
     const doc: PinDoc = {
       nickname: cleanNick,
