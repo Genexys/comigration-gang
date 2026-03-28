@@ -18,7 +18,19 @@ const PORT = Number(process.env.PORT) || 3001;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/comigration";
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "http://localhost:5173";
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "challenges.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
+      fontSrc: ["'self'", "fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "*.cartocdn.com", "*.openstreetmap.org"],
+      connectSrc: ["'self'", "challenges.cloudflare.com"],
+      frameSrc: ["challenges.cloudflare.com"],
+    },
+  },
+}));
 app.use(cors({
   origin: ALLOWED_ORIGIN.split(",").map(o => o.trim()),
   methods: ["GET", "POST", "DELETE"],
