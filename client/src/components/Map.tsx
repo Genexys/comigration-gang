@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
@@ -17,7 +16,7 @@ function createPinIcon() {
   });
 }
 
-function createClusterIcon(cluster: L.MarkerCluster) {
+function createClusterIcon(cluster: { getChildCount(): number }) {
   const count = cluster.getChildCount();
   let size = "small";
   if (count >= 20) size = "large";
