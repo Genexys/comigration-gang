@@ -4,6 +4,7 @@ import { MapView } from "./components/Map";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { AddPinModal } from "./components/AddPinModal";
+import { LocationSearch } from "./components/LocationSearch";
 import { usePins } from "./hooks/usePins";
 import "./App.css";
 
@@ -15,34 +16,47 @@ function MapPage() {
   const [placingMode, setPlacingMode] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pendingLocationName, setPendingLocationName] = useState<string>("");
+  const [flyTo, setFlyTo] = useState<{ lat: number; lng: number } | null>(null);
 
   const handleStartPlacing = useCallback(() => {
     setPlacingMode(true);
   }, []);
 
-  const handleMapClick = useCallback((lat: number, lng: number) => {
+  const handleMapClick = useCallback((lat: number, lng: number, name?: string) => {
     setPendingCoords({ lat, lng });
+    setPendingLocationName(name ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
     setPlacingMode(false);
     setModalOpen(true);
   }, []);
 
+  const handleLocationSelect = useCallback((lat: number, lng: number, name: string) => {
+    setFlyTo({ lat, lng });
+    handleMapClick(lat, lng, name);
+  }, [handleMapClick]);
+
   const handleModalClose = useCallback(() => {
     setModalOpen(false);
     setPendingCoords(null);
+    setPendingLocationName("");
+  }, []);
+
+  const handleCancelPlacing = useCallback(() => {
+    setPlacingMode(false);
   }, []);
 
   const handleSubmit = useCallback(
     async (nickname: string, comment: string, turnstileToken: string | null) => {
       if (!pendingCoords) return;
-      // Close modal immediately — before optimistic update fires —
-      // so the fresh nickname doesn't flash as "already exists"
       const coords = pendingCoords;
+      const locationName = pendingLocationName;
       setModalOpen(false);
       setPendingCoords(null);
+      setPendingLocationName("");
       try {
         await addPin({
           nickname,
-          city: `${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}`,
+          city: locationName || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
           lat: coords.lat,
           lng: coords.lng,
           comment,
@@ -52,7 +66,7 @@ function MapPage() {
         console.error("Failed to add pin:", err);
       }
     },
-    [pendingCoords, addPin]
+    [pendingCoords, pendingLocationName, addPin]
   );
 
   return (
@@ -78,7 +92,12 @@ function MapPage() {
         Я тут!
       </button>
 
-      {placingMode && <div className="place-hint active">Кликни на карту, чтобы поставить пин ↓</div>}
+      {placingMode && (
+        <LocationSearch
+          onSelect={handleLocationSelect}
+          onCancel={handleCancelPlacing}
+        />
+      )}
 
       <AddPinModal
         open={modalOpen}
@@ -92,7 +111,12 @@ function MapPage() {
           <span style={{ fontFamily: "Unbounded, sans-serif", color: "var(--text-dim)" }}>Загрузка...</span>
         </div>
       ) : (
-        <MapView pins={pins} placingMode={placingMode} onMapClick={handleMapClick} />
+        <MapView
+          pins={pins}
+          placingMode={placingMode}
+          onMapClick={handleMapClick}
+          flyTo={flyTo}
+        />
       )}
     </>
   );

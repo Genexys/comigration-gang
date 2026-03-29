@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import type { Pin } from "../types";
@@ -44,13 +45,24 @@ function ClickHandler({ placingMode, onMapClick }: ClickHandlerProps) {
   return null;
 }
 
+function FlyToHandler({ flyTo }: { flyTo: { lat: number; lng: number } | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (flyTo) {
+      map.flyTo([flyTo.lat, flyTo.lng], Math.max(map.getZoom(), 10), { duration: 1.2 });
+    }
+  }, [flyTo, map]);
+  return null;
+}
+
 interface MapViewProps {
   pins: Pin[];
   placingMode: boolean;
   onMapClick: (lat: number, lng: number) => void;
+  flyTo?: { lat: number; lng: number } | null;
 }
 
-export function MapView({ pins, placingMode, onMapClick }: MapViewProps) {
+export function MapView({ pins, placingMode, onMapClick, flyTo }: MapViewProps) {
   const icon = createPinIcon();
 
   return (
@@ -67,6 +79,7 @@ export function MapView({ pins, placingMode, onMapClick }: MapViewProps) {
         maxZoom={18}
       />
       <ClickHandler placingMode={placingMode} onMapClick={onMapClick} />
+      <FlyToHandler flyTo={flyTo ?? null} />
       <MarkerClusterGroup
         maxClusterRadius={50}
         spiderfyOnMaxZoom={true}

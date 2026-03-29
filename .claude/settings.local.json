@@ -27,7 +27,8 @@
       "Bash(npm --version)",
       "Bash(pnpm remove:*)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(cat \"/Users/iliaborisenko/Downloads/Comigration Gang Logs \\(2\\).json\")"
     ]
   }
 }

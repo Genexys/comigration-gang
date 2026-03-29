@@ -61,7 +61,7 @@ async function start() {
         styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
         fontSrc: ["'self'", "fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "*.cartocdn.com", "*.openstreetmap.org"],
-        connectSrc: ["'self'", "challenges.cloudflare.com"],
+        connectSrc: ["'self'", "challenges.cloudflare.com", "nominatim.openstreetmap.org"],
         frameSrc: ["challenges.cloudflare.com"],
       },
     })
