@@ -34,17 +34,20 @@ function MapPage() {
   const handleSubmit = useCallback(
     async (nickname: string, comment: string, turnstileToken: string | null) => {
       if (!pendingCoords) return;
+      // Close modal immediately — before optimistic update fires —
+      // so the fresh nickname doesn't flash as "already exists"
+      const coords = pendingCoords;
+      setModalOpen(false);
+      setPendingCoords(null);
       try {
         await addPin({
           nickname,
-          city: `${pendingCoords.lat.toFixed(2)}, ${pendingCoords.lng.toFixed(2)}`,
-          lat: pendingCoords.lat,
-          lng: pendingCoords.lng,
+          city: `${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}`,
+          lat: coords.lat,
+          lng: coords.lng,
           comment,
           turnstileToken: turnstileToken ?? undefined,
         });
-        setModalOpen(false);
-        setPendingCoords(null);
       } catch (err) {
         console.error("Failed to add pin:", err);
       }
