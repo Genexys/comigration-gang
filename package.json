@@ -6,7 +6,8 @@
     "dev:client": "cd client && pnpm dev",
     "dev:server": "cd server && pnpm dev",
     "dev": "concurrently -n client,server -c cyan,yellow \"pnpm dev:client\" \"pnpm dev:server\"",
-    "build": "cd client && pnpm build && cd ../server && pnpm build"
+    "build": "cd client && pnpm build && cd ../server && pnpm build",
+    "test": "pnpm --filter client test && pnpm --filter comigration-server test"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

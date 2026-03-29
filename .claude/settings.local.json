@@ -12,7 +12,21 @@
       "Bash(ls /Users/iliaborisenko/Downloads/*comigra* /Users/iliaborisenko/Downloads/*Comigra* /Users/iliaborisenko/Downloads/*COMIGRA* /Users/iliaborisenko/Downloads/*logo* /Users/iliaborisenko/Downloads/*Logo*)",
       "Bash(git init:*)",
       "Bash(git remote:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(cat \"/Users/iliaborisenko/Downloads/Comigration Gang Logs \\(1\\).json\")",
+      "Bash(convert --version)",
+      "Bash(magick logo.jpg -resize 16x16 favicon-16.png)",
+      "Bash(magick logo.jpg -resize 32x32 favicon-32.png)",
+      "Bash(magick logo.jpg -resize 180x180 apple-touch-icon.png)",
+      "Bash(magick logo.jpg -resize 192x192 icon-192.png)",
+      "Bash(magick logo.jpg -resize 512x512 icon-512.png)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(wait)",
+      "Bash(npm --version)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm test:*)"
     ]
   }
 }

@@ -26,7 +26,7 @@ function normalize(str: string): string {
     .toLowerCase()
     .replace(/ё/g, "е")
     .replace(/[^\wа-яё]/gi, " ") // keep only letters
-    .replace(/(.)\1{2,}/g, "$1$1"); // reduce 3+ repeated chars to 2
+    .replace(/(.)\1+/g, "$1"); // collapse any repeated chars to 1
 }
 
 export function containsProfanity(text: string): boolean {
