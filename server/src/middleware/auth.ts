@@ -1,17 +1,16 @@
-import { Request, Response, NextFunction } from "express";
+import type { MiddlewareHandler } from "hono";
+import type { AppEnv } from "../types.js";
 
-export function adminAuth(req: Request, res: Response, next: NextFunction) {
+export const adminAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   const adminPass = process.env.ADMIN_PASSWORD;
   if (!adminPass) {
-    res.status(500).json({ error: "Admin password not configured" });
-    return;
+    return c.json({ error: "Admin password not configured" }, 500);
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = c.req.header("authorization");
   if (!authHeader || authHeader !== `Bearer ${adminPass}`) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
+    return c.json({ error: "Unauthorized" }, 401);
   }
 
-  next();
-}
+  await next();
+};

@@ -1,30 +1,29 @@
-import { Request, Response, NextFunction } from "express";
-import { Db } from "mongodb";
+import type { MiddlewareHandler } from "hono";
+import type { AppEnv } from "../types.js";
 
 const MAX_PINS_PER_DAY = 3;
 
-export function pinRateLimit(req: Request, res: Response, next: NextFunction) {
-  const db = req.app.locals.db as Db;
+export const pinRateLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const db = c.get("db");
   const ip =
-    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
-    req.socket.remoteAddress ||
-    "unknown";
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  db.collection("pins")
-    .countDocuments({ ip, createdAt: { $gte: oneDayAgo } })
-    .then((count) => {
-      if (count >= MAX_PINS_PER_DAY) {
-        res.status(429).json({
-          error: `Максимум ${MAX_PINS_PER_DAY} пина в сутки. Попробуй завтра!`,
-        });
-        return;
-      }
-      next();
-    })
-    .catch((err) => {
-      console.error("Rate limit check failed:", err);
-      next();
-    });
-}
+  try {
+    const count = await db
+      .collection("pins")
+      .countDocuments({ ip, createdAt: { $gte: oneDayAgo } });
+
+    if (count >= MAX_PINS_PER_DAY) {
+      return c.json(
+        { error: `Максимум ${MAX_PINS_PER_DAY} пина в сутки. Попробуй завтра!` },
+        429
+      );
+    }
+  } catch (err) {
+    console.error("Rate limit check failed:", err);
+  }
+
+  await next();
+};

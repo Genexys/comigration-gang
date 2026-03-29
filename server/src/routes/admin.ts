@@ -1,23 +1,25 @@
-import { Router, Request, Response } from "express";
-import { ObjectId, Db, Collection } from "mongodb";
+import { Hono } from "hono";
+import { ObjectId, type Db, type Collection } from "mongodb";
 import { PinDoc } from "../models/Pin.js";
 import { adminAuth } from "../middleware/auth.js";
+import type { AppEnv } from "../types.js";
 
-export const adminRouter = Router();
-adminRouter.use(adminAuth);
+export const adminRouter = new Hono<AppEnv>();
+adminRouter.use("/*", adminAuth);
 
-function pins(req: Request): Collection<PinDoc> {
-  return (req.app.locals.db as Db).collection<PinDoc>("pins");
+function pins(db: Db): Collection<PinDoc> {
+  return db.collection<PinDoc>("pins");
 }
 
 // GET /api/admin/pins — all pins WITH ip, pagination, search, date filter
-adminRouter.get("/pins", async (req: Request, res: Response) => {
+adminRouter.get("/pins", async (c) => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+    const db = c.get("db");
+    const page = Math.max(1, Number(c.req.query("page")) || 1);
+    const limit = Math.min(100, Math.max(1, Number(c.req.query("limit")) || 50));
     const skip = (page - 1) * limit;
-    const search = (req.query.search as string)?.trim() || "";
-    const dateFilter = (req.query.date as string) || "all";
+    const search = c.req.query("search")?.trim() || "";
+    const dateFilter = c.req.query("date") || "all";
 
     const filter: Record<string, unknown> = {};
 
@@ -35,8 +37,8 @@ adminRouter.get("/pins", async (req: Request, res: Response) => {
     }
 
     const [docs, total] = await Promise.all([
-      pins(req).find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
-      pins(req).countDocuments(filter),
+      pins(db).find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+      pins(db).countDocuments(filter),
     ]);
 
     const items = docs.map((doc) => ({
@@ -51,49 +53,48 @@ adminRouter.get("/pins", async (req: Request, res: Response) => {
       createdAt: doc.createdAt.toISOString(),
     }));
 
-    res.json({ items, total, page, pages: Math.ceil(total / limit) });
+    return c.json({ items, total, page, pages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("GET /api/admin/pins error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return c.json({ error: "Internal server error" }, 500);
   }
 });
 
 // DELETE /api/admin/pins/:id
-adminRouter.delete("/pins/:id", async (req: Request, res: Response) => {
+adminRouter.delete("/pins/:id", async (c) => {
   try {
-    const id = req.params.id as string;
+    const db = c.get("db");
+    const id = c.req.param("id");
+
     if (!ObjectId.isValid(id)) {
-      res.status(400).json({ error: "Invalid ID" });
-      return;
+      return c.json({ error: "Invalid ID" }, 400);
     }
 
-    const result = await pins(req).deleteOne({ _id: new ObjectId(id) });
+    const result = await pins(db).deleteOne({ _id: new ObjectId(id) });
     if (result.deletedCount === 0) {
-      res.status(404).json({ error: "Pin not found" });
-      return;
+      return c.json({ error: "Pin not found" }, 404);
     }
 
-    res.json({ ok: true });
+    return c.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/admin/pins error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return c.json({ error: "Internal server error" }, 500);
   }
 });
 
-// POST /api/admin/pins/:id/ban-ip — ban the IP of a pin
-adminRouter.post("/pins/:id/ban-ip", async (req: Request, res: Response) => {
+// POST /api/admin/pins/:id/ban-ip
+adminRouter.post("/pins/:id/ban-ip", async (c) => {
   try {
-    const id = req.params.id as string;
+    const db = c.get("db");
+    const id = c.req.param("id");
+
     if (!ObjectId.isValid(id)) {
-      res.status(400).json({ error: "Invalid ID" });
-      return;
+      return c.json({ error: "Invalid ID" }, 400);
     }
 
-    const db = req.app.locals.db as Db;
-    const pin = await pins(req).findOne({ _id: new ObjectId(id) });
+    const pin = await pins(db).findOne({ _id: new ObjectId(id) });
     if (!pin) {
-      res.status(404).json({ error: "Pin not found" });
-      return;
+      return c.json({ error: "Pin not found" }, 404);
     }
 
     await db.collection("banned_ips").updateOne(
@@ -102,12 +103,11 @@ adminRouter.post("/pins/:id/ban-ip", async (req: Request, res: Response) => {
       { upsert: true }
     );
 
-    // Delete all pins from this IP
-    const deleteResult = await pins(req).deleteMany({ ip: pin.ip });
+    const deleteResult = await pins(db).deleteMany({ ip: pin.ip });
 
-    res.json({ ok: true, ip: pin.ip, deletedPins: deleteResult.deletedCount });
+    return c.json({ ok: true, ip: pin.ip, deletedPins: deleteResult.deletedCount });
   } catch (err) {
     console.error("POST /api/admin/ban-ip error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return c.json({ error: "Internal server error" }, 500);
   }
 });

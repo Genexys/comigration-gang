@@ -26,7 +26,8 @@
       "Bash(wait)",
       "Bash(npm --version)",
       "Bash(pnpm remove:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(pnpm build:*)"
     ]
   }
 }

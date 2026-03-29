@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import express from "express";
-import request from "supertest";
+import { Hono } from "hono";
 import { pinsRouter, invalidatePinsCache } from "./pins.js";
+import type { AppEnv } from "../types.js";
 
 // ── MongoDB mock ──────────────────────────────────────────────────────────────
 const mockPins: Record<string, unknown>[] = [];
@@ -18,20 +18,24 @@ const mockCollection = {
     mockPins.push(doc);
     return { insertedId: id };
   }),
-  countDocuments: vi.fn(async () => mockPins.length),
+  countDocuments: vi.fn(async () => 0),
 };
 
 const mockDb = {
   collection: vi.fn(() => mockCollection),
 };
 
-// Helper to build the test app
+// Helper: builds a Hono app with injected mock db + pins routes
 function makeApp(env: Record<string, string> = {}) {
   Object.assign(process.env, { TURNSTILE_SECRET: "disabled", ...env });
-  const app = express();
-  app.use(express.json());
-  app.locals.db = mockDb;
-  app.use("/api/pins", pinsRouter);
+
+  const app = new Hono<AppEnv>();
+  app.use("/*", async (c, next) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    c.set("db", mockDb as any);
+    await next();
+  });
+  app.route("/api/pins", pinsRouter);
   return app;
 }
 
@@ -40,7 +44,7 @@ describe("GET /api/pins", () => {
   beforeEach(() => {
     mockPins.length = 0;
     vi.clearAllMocks();
-    invalidatePinsCache(); // clear module-level cache between tests
+    invalidatePinsCache();
     mockCollection.find.mockReturnValue({
       sort: vi.fn().mockReturnThis(),
       toArray: vi.fn(async () => mockPins),
@@ -49,9 +53,10 @@ describe("GET /api/pins", () => {
 
   it("returns 200 and an array", async () => {
     const app = makeApp();
-    const res = await request(app).get("/api/pins");
+    const res = await app.request("/api/pins");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
   });
 
   it("does not expose ip field", async () => {
@@ -69,9 +74,9 @@ describe("GET /api/pins", () => {
       toArray: vi.fn(async () => mockPins),
     });
     const app = makeApp();
-    const res = await request(app).get("/api/pins");
-    expect(res.status).toBe(200);
-    expect(res.body[0]).not.toHaveProperty("ip");
+    const res = await app.request("/api/pins");
+    const body = await res.json();
+    expect(body[0]).not.toHaveProperty("ip");
   });
 });
 
@@ -84,11 +89,20 @@ describe("POST /api/pins", () => {
     comment: "Привет!",
   };
 
+  function post(app: Hono, body: unknown, headers: Record<string, string> = {}) {
+    return app.request("/api/pins", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    });
+  }
+
   beforeEach(() => {
     mockPins.length = 0;
     vi.clearAllMocks();
     invalidatePinsCache();
-    mockCollection.findOne.mockResolvedValue(null); // not banned, no duplicate
+    mockCollection.findOne.mockResolvedValue(null);
+    mockCollection.countDocuments.mockResolvedValue(0);
     mockCollection.find.mockReturnValue({
       sort: vi.fn().mockReturnThis(),
       toArray: vi.fn(async () => mockPins),
@@ -97,90 +111,85 @@ describe("POST /api/pins", () => {
 
   it("creates a pin and returns 201", async () => {
     const app = makeApp();
-    const res = await request(app).post("/api/pins").send(validPin);
+    const res = await post(app, validPin);
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ nickname: "Тестер", city: "Москва" });
+    const body = await res.json();
+    expect(body).toMatchObject({ nickname: "Тестер", city: "Москва" });
   });
 
   it("does not return ip in response", async () => {
     const app = makeApp();
-    const res = await request(app).post("/api/pins").send(validPin);
-    expect(res.status).toBe(201);
-    expect(res.body).not.toHaveProperty("ip");
+    const res = await post(app, validPin);
+    const body = await res.json();
+    expect(body).not.toHaveProperty("ip");
   });
 
   it("rejects nickname shorter than 2 chars", async () => {
-    const app = makeApp();
-    const res = await request(app).post("/api/pins").send({ ...validPin, nickname: "A" });
+    const res = await post(makeApp(), { ...validPin, nickname: "A" });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/nickname/);
+    const body = await res.json();
+    expect(body.error).toMatch(/nickname/);
   });
 
   it("rejects nickname longer than 30 chars", async () => {
-    const app = makeApp();
-    const res = await request(app).post("/api/pins").send({
-      ...validPin,
-      nickname: "A".repeat(31),
-    });
+    const res = await post(makeApp(), { ...validPin, nickname: "A".repeat(31) });
     expect(res.status).toBe(400);
   });
 
   it("rejects invalid lat", async () => {
-    const app = makeApp();
-    const res = await request(app).post("/api/pins").send({ ...validPin, lat: 999 });
+    const res = await post(makeApp(), { ...validPin, lat: 999 });
     expect(res.status).toBe(400);
   });
 
   it("rejects invalid lng", async () => {
-    const app = makeApp();
-    const res = await request(app).post("/api/pins").send({ ...validPin, lng: -999 });
+    const res = await post(makeApp(), { ...validPin, lng: -999 });
     expect(res.status).toBe(400);
   });
 
   it("strips HTML from nickname", async () => {
-    const app = makeApp();
-    const res = await request(app)
-      .post("/api/pins")
-      .send({ ...validPin, nickname: "<script>alert(1)</script>Тест" });
+    const res = await post(makeApp(), { ...validPin, nickname: "<script>alert(1)</script>Тест" });
     expect(res.status).toBe(201);
-    expect(res.body.nickname).not.toContain("<script>");
-    expect(res.body.nickname).toContain("Тест");
+    const body = await res.json();
+    expect(body.nickname).not.toContain("<script>");
+    expect(body.nickname).toContain("Тест");
   });
 
   it("rejects banned IP", async () => {
-    mockCollection.findOne.mockResolvedValueOnce({ ip: "5.5.5.5" }); // ban found
-    const app = makeApp();
-    const res = await request(app).post("/api/pins").send(validPin);
+    mockCollection.findOne.mockResolvedValueOnce({ ip: "5.5.5.5" });
+    const res = await post(makeApp(), validPin, { "x-forwarded-for": "5.5.5.5" });
     expect(res.status).toBe(403);
   });
 
   it("rejects duplicate pin in same area within 24h", async () => {
     mockCollection.findOne
-      .mockResolvedValueOnce(null) // not banned
-      .mockResolvedValueOnce({ _id: "existing", lat: 55.75, lng: 37.61 }); // duplicate
-    const app = makeApp();
-    const res = await request(app).post("/api/pins").send(validPin);
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ _id: "existing", lat: 55.75, lng: 37.61 });
+    const res = await post(makeApp(), validPin);
     expect(res.status).toBe(409);
   });
 
   it("rejects profanity in nickname", async () => {
-    const app = makeApp();
-    const res = await request(app).post("/api/pins").send({ ...validPin, nickname: "хуйня123" });
+    const res = await post(makeApp(), { ...validPin, nickname: "хуйня123" });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/недопустим/);
+    const body = await res.json();
+    expect(body.error).toMatch(/недопустим/);
   });
 
   it("rejects profanity in comment", async () => {
-    const app = makeApp();
-    const res = await request(app).post("/api/pins").send({ ...validPin, comment: "всё пиздец" });
+    const res = await post(makeApp(), { ...validPin, comment: "всё пиздец" });
     expect(res.status).toBe(400);
   });
 
   it("truncates comment at 200 chars", async () => {
-    const app = makeApp();
-    const longComment = "А".repeat(300);
-    const res = await request(app).post("/api/pins").send({ ...validPin, comment: longComment });
+    const res = await post(makeApp(), { ...validPin, comment: "А".repeat(300) });
     expect(res.status).toBe(201);
-    expect(res.body.comment.length).toBeLessThanOrEqual(200);
+    const body = await res.json();
+    expect(body.comment.length).toBeLessThanOrEqual(200);
+  });
+
+  it("enforces rate limit of 3 pins per day", async () => {
+    mockCollection.countDocuments.mockResolvedValue(3);
+    const res = await post(makeApp(), validPin);
+    expect(res.status).toBe(429);
   });
 });

@@ -1,13 +1,14 @@
-import { Router, Request, Response } from "express";
-import { Db, Collection } from "mongodb";
+import { Hono } from "hono";
+import type { Db, Collection } from "mongodb";
 import { PinDoc, toPublic } from "../models/Pin.js";
 import { pinRateLimit } from "../middleware/rateLimit.js";
 import { containsProfanity } from "../utils/profanity.js";
+import type { AppEnv } from "../types.js";
 
-export const pinsRouter = Router();
+export const pinsRouter = new Hono<AppEnv>();
 
-function pins(req: Request): Collection<PinDoc> {
-  return (req.app.locals.db as Db).collection<PinDoc>("pins");
+function pins(db: Db): Collection<PinDoc> {
+  return db.collection<PinDoc>("pins");
 }
 
 function stripHtml(str: string): string {
@@ -28,7 +29,7 @@ export function invalidatePinsCache() {
 
 async function verifyTurnstile(token: string): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET;
-  if (!secret || secret === "disabled") return true; // skip if not configured
+  if (!secret || secret === "disabled") return true;
 
   try {
     const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
@@ -45,91 +46,82 @@ async function verifyTurnstile(token: string): Promise<boolean> {
 }
 
 // GET /api/pins — all pins (without ip)
-pinsRouter.get("/", async (req: Request, res: Response) => {
+pinsRouter.get("/", async (c) => {
   try {
     const now = Date.now();
     if (cachedPins && now - cacheTime < CACHE_TTL) {
-      res.setHeader("Content-Type", "application/json");
-      res.send(cachedPins);
-      return;
+      return c.body(cachedPins, 200, { "Content-Type": "application/json" });
     }
 
-    const docs = await pins(req).find().sort({ createdAt: -1 }).toArray();
+    const db = c.get("db");
+    const docs = await pins(db).find().sort({ createdAt: -1 }).toArray();
     const publicPins = docs.map(toPublic);
     cachedPins = JSON.stringify(publicPins);
     cacheTime = now;
 
-    res.setHeader("Content-Type", "application/json");
-    res.send(cachedPins);
+    return c.body(cachedPins, 200, { "Content-Type": "application/json" });
   } catch (err) {
     console.error("GET /api/pins error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return c.json({ error: "Internal server error" }, 500);
   }
 });
 
 // POST /api/pins — create pin
-pinsRouter.post("/", pinRateLimit, async (req: Request, res: Response) => {
+pinsRouter.post("/", pinRateLimit, async (c) => {
   try {
-    const { nickname, city, country, lat, lng, comment, turnstileToken } = req.body;
+    const body = await c.req.json().catch(() => null);
+    if (!body) return c.json({ error: "Invalid JSON" }, 400);
+
+    const { nickname, city, country, lat, lng, comment, turnstileToken } = body;
 
     // Validation
     if (typeof nickname !== "string" || nickname.trim().length < 2 || nickname.trim().length > 30) {
-      res.status(400).json({ error: "nickname must be 2-30 characters" });
-      return;
+      return c.json({ error: "nickname must be 2-30 characters" }, 400);
     }
     if (typeof city !== "string" || city.trim().length === 0) {
-      res.status(400).json({ error: "city is required" });
-      return;
+      return c.json({ error: "city is required" }, 400);
     }
     if (typeof lat !== "number" || lat < -90 || lat > 90) {
-      res.status(400).json({ error: "lat must be between -90 and 90" });
-      return;
+      return c.json({ error: "lat must be between -90 and 90" }, 400);
     }
     if (typeof lng !== "number" || lng < -180 || lng > 180) {
-      res.status(400).json({ error: "lng must be between -180 and 180" });
-      return;
+      return c.json({ error: "lng must be between -180 and 180" }, 400);
     }
 
     const ip =
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
-      req.socket.remoteAddress ||
-      "unknown";
+      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
-    const db = req.app.locals.db as Db;
+    const db = c.get("db");
 
-    // Check IP ban — log attempts
+    // Check IP ban
     const banned = await db.collection("banned_ips").findOne({ ip });
     if (banned) {
       console.warn(`[SECURITY] Banned IP attempted to post: ${ip}`);
-      res.status(403).json({ error: "Доступ заблокирован" });
-      return;
+      return c.json({ error: "Доступ заблокирован" }, 403);
     }
 
     // Turnstile verification
     if (process.env.TURNSTILE_SECRET && process.env.TURNSTILE_SECRET !== "disabled") {
       if (!turnstileToken || typeof turnstileToken !== "string") {
-        res.status(400).json({ error: "Captcha required" });
-        return;
+        return c.json({ error: "Captcha required" }, 400);
       }
       const valid = await verifyTurnstile(turnstileToken);
       if (!valid) {
         console.warn(`[SECURITY] Turnstile failed for IP: ${ip}`);
-        res.status(400).json({ error: "Captcha verification failed" });
-        return;
+        return c.json({ error: "Captcha verification failed" }, 400);
       }
     }
 
     // Deduplication: same IP, pin within ~1km in the last 24h
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const nearby = await pins(req).findOne({
+    const nearby = await pins(db).findOne({
       ip,
       createdAt: { $gte: oneDayAgo },
       lat: { $gte: lat - DEDUP_RADIUS_DEG, $lte: lat + DEDUP_RADIUS_DEG },
       lng: { $gte: lng - DEDUP_RADIUS_DEG, $lte: lng + DEDUP_RADIUS_DEG },
     });
     if (nearby) {
-      res.status(409).json({ error: "Ты уже поставил пин в этом месте" });
-      return;
+      return c.json({ error: "Ты уже поставил пин в этом месте" }, 409);
     }
 
     // Sanitize
@@ -138,8 +130,7 @@ pinsRouter.post("/", pinRateLimit, async (req: Request, res: Response) => {
 
     // Profanity filter
     if (containsProfanity(cleanNick) || containsProfanity(cleanComment)) {
-      res.status(400).json({ error: "Содержит недопустимые слова" });
-      return;
+      return c.json({ error: "Содержит недопустимые слова" }, 400);
     }
 
     const doc: PinDoc = {
@@ -153,14 +144,14 @@ pinsRouter.post("/", pinRateLimit, async (req: Request, res: Response) => {
       ip,
     };
 
-    const result = await pins(req).insertOne(doc);
+    const result = await pins(db).insertOne(doc);
     doc._id = result.insertedId;
 
     cachedPins = null;
 
-    res.status(201).json(toPublic(doc));
+    return c.json(toPublic(doc), 201);
   } catch (err) {
     console.error("POST /api/pins error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return c.json({ error: "Internal server error" }, 500);
   }
 });

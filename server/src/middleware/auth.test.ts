@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import express from "express";
-import request from "supertest";
+import { describe, it, expect, afterEach } from "vitest";
+import { Hono } from "hono";
 import { adminAuth } from "./auth.js";
+import type { AppEnv } from "../types.js";
 
 function makeApp(password?: string) {
   if (password !== undefined) {
@@ -9,8 +9,9 @@ function makeApp(password?: string) {
   } else {
     delete process.env.ADMIN_PASSWORD;
   }
-  const app = express();
-  app.get("/protected", adminAuth, (_req, res) => res.json({ ok: true }));
+  const app = new Hono<AppEnv>();
+  app.use("/protected", adminAuth);
+  app.get("/protected", (c) => c.json({ ok: true }));
   return app;
 }
 
@@ -20,39 +21,34 @@ describe("adminAuth middleware", () => {
   });
 
   it("returns 500 when ADMIN_PASSWORD is not set", async () => {
-    const app = makeApp(undefined);
-    const res = await request(app).get("/protected");
+    const res = await makeApp(undefined).request("/protected");
     expect(res.status).toBe(500);
   });
 
   it("returns 401 without Authorization header", async () => {
-    const app = makeApp("secret123");
-    const res = await request(app).get("/protected");
+    const res = await makeApp("secret123").request("/protected");
     expect(res.status).toBe(401);
   });
 
   it("returns 401 with wrong password", async () => {
-    const app = makeApp("secret123");
-    const res = await request(app)
-      .get("/protected")
-      .set("Authorization", "Bearer wrongpassword");
+    const res = await makeApp("secret123").request("/protected", {
+      headers: { Authorization: "Bearer wrongpassword" },
+    });
     expect(res.status).toBe(401);
   });
 
   it("passes through with correct Bearer token", async () => {
-    const app = makeApp("secret123");
-    const res = await request(app)
-      .get("/protected")
-      .set("Authorization", "Bearer secret123");
+    const res = await makeApp("secret123").request("/protected", {
+      headers: { Authorization: "Bearer secret123" },
+    });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true });
   });
 
   it("returns 401 for Basic auth instead of Bearer", async () => {
-    const app = makeApp("secret123");
-    const res = await request(app)
-      .get("/protected")
-      .set("Authorization", "Basic secret123");
+    const res = await makeApp("secret123").request("/protected", {
+      headers: { Authorization: "Basic secret123" },
+    });
     expect(res.status).toBe(401);
   });
 });
