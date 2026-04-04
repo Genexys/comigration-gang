@@ -43,10 +43,10 @@ async function start() {
     { background: true }
   );
 
-  // Anonymize IPs in pins older than 90 days
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  // Anonymize IPs in pins older than 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const anonResult = await db.collection("pins").updateMany(
-    { createdAt: { $lt: ninetyDaysAgo }, ip: { $exists: true } },
+    { createdAt: { $lt: thirtyDaysAgo }, ip: { $exists: true } },
     { $unset: { ip: "" } }
   );
   if (anonResult.modifiedCount > 0) {
