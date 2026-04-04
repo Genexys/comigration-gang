@@ -5,8 +5,7 @@ const MAX_PINS_PER_DAY = 3;
 
 export const pinRateLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
   const db = c.get("db");
-  const ip =
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = c.get("clientIp");
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 

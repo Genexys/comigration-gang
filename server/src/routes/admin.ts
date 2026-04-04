@@ -22,7 +22,7 @@ setInterval(() => {
 }, 5 * 60_000).unref();
 
 const adminRateLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
-  const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = c.get("clientIp");
   const now = Date.now();
   const entry = adminRequests.get(ip);
 
@@ -140,7 +140,8 @@ adminRouter.post("/pins/:id/ban-ip", async (c) => {
     const deleteResult = await pins(db).deleteMany({ ip: pin.ip });
 
     const maskedIp = pin.ip?.replace(/\.\d+$/, ".***") ?? "unknown";
-    console.log(`[ADMIN] IP banned: ${pin.ip} via pin ${id}, deleted ${deleteResult.deletedCount} pins at ${new Date().toISOString()}`);
+    const logIp = pin.ip?.replace(/\.\d+$/, ".***") ?? "unknown";
+    console.log(`[ADMIN] IP banned: ${logIp} via pin ${id}, deleted ${deleteResult.deletedCount} pins at ${new Date().toISOString()}`);
     return c.json({ ok: true, ip: maskedIp, deletedPins: deleteResult.deletedCount });
   } catch (err) {
     console.error("POST /api/admin/ban-ip error:", err);

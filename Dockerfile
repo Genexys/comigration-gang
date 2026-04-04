@@ -20,7 +20,7 @@ RUN pnpm build
 
 # Stage 3: production image
 FROM node:20-alpine
-RUN npm install -g pnpm
+RUN corepack enable pnpm
 WORKDIR /app
 
 # Copy server dist
@@ -28,9 +28,9 @@ COPY --from=server-build /app/server/dist ./server/dist
 COPY --from=server-build /app/server/package.json ./server/package.json
 COPY --from=server-build /app/server/pnpm-lock.yaml ./server/pnpm-lock.yaml
 
-# Install only production deps
+# Install only production deps, then disable corepack to reduce surface
 WORKDIR /app/server
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile && corepack disable
 
 # Copy client build next to server so the path ../../client/dist resolves
 COPY --from=client-build /app/client/dist /app/client/dist

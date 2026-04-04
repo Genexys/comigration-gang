@@ -34,7 +34,8 @@
       "Bash(node:*)",
       "Bash(ls /Users/iliaborisenko/Docs/Projects/comigration-gang/client/node_modules/.pnpm/rolldown*/node_modules/@rolldown/)",
       "Bash(pnpm --filter client test)",
-      "Bash(pnpm --filter comigration-server test)"
+      "Bash(pnpm --filter comigration-server test)",
+      "Bash(npx skills:*)"
     ]
   }
 }

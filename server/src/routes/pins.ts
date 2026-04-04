@@ -87,8 +87,8 @@ pinsRouter.post("/", pinRateLimit, async (c) => {
     if (typeof nickname !== "string" || nickname.trim().length < 2 || nickname.trim().length > 30) {
       return c.json({ error: "nickname must be 2-30 characters" }, 400);
     }
-    if (typeof city !== "string" || city.trim().length === 0) {
-      return c.json({ error: "city is required" }, 400);
+    if (typeof city !== "string" || city.trim().length === 0 || city.length > 200) {
+      return c.json({ error: "city must be 1-200 characters" }, 400);
     }
     if (typeof lat !== "number" || lat < -90 || lat > 90) {
       return c.json({ error: "lat must be between -90 and 90" }, 400);
@@ -106,15 +106,14 @@ pinsRouter.post("/", pinRateLimit, async (c) => {
       return c.json({ error: "Country too long" }, 400);
     }
 
-    const ip =
-      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = c.get("clientIp");
 
     const db = c.get("db");
 
     // Check IP ban
     const banned = await db.collection("banned_ips").findOne({ ip });
     if (banned) {
-      console.warn(`[SECURITY] Banned IP attempted to post: ${ip}`);
+      console.warn(`[SECURITY] Banned IP attempted to post: ${ip.replace(/\.\d+$/, ".***")}`);
       return c.json({ error: "Доступ заблокирован" }, 403);
     }
 
@@ -125,7 +124,7 @@ pinsRouter.post("/", pinRateLimit, async (c) => {
       }
       const valid = await verifyTurnstile(turnstileToken);
       if (!valid) {
-        console.warn(`[SECURITY] Turnstile failed for IP: ${ip}`);
+        console.warn(`[SECURITY] Turnstile failed for IP: ${ip.replace(/\.\d+$/, ".***")}`);
         return c.json({ error: "Captcha verification failed" }, 400);
       }
     }

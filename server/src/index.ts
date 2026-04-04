@@ -18,7 +18,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config();
 
 const PORT = Number(process.env.PORT) || 3001;
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/comigration";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const MONGODB_URI = IS_PRODUCTION
+  ? (process.env.MONGODB_URI ?? (() => { throw new Error("MONGODB_URI is required in production"); })())
+  : (process.env.MONGODB_URI || "mongodb://localhost:27017/comigration");
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "http://localhost:5173";
 
 async function start() {
@@ -52,24 +55,36 @@ async function start() {
 
   const app = new Hono<AppEnv>();
 
-  // Inject db into every request context
+  // Inject db and client IP into every request context
   app.use("/*", async (c, next) => {
     c.set("db", db);
+    // Centralized IP extraction: trust Railway/Cloudflare proxy headers
+    const ip =
+      c.req.header("cf-connecting-ip") ||
+      c.req.header("x-real-ip") ||
+      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+    c.set("clientIp", ip);
     await next();
   });
 
   // Body size limit
   app.use("/api/*", bodyLimit({ maxSize: 16 * 1024 })); // 16KB max
 
-  // Security headers (Helmet equivalent)
+  // Security headers
   app.use(
     "/*",
     secureHeaders({
       strictTransportSecurity: "max-age=31536000; includeSubDomains",
+      permissionsPolicy: {
+        camera: [],
+        microphone: [],
+        geolocation: [],
+      },
       contentSecurityPolicy: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "challenges.cloudflare.com"],
-        styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
+        scriptSrc: ["'self'", "challenges.cloudflare.com"],
+        styleSrc: ["'self'", "fonts.googleapis.com"],
         fontSrc: ["'self'", "fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "*.cartocdn.com", "*.openstreetmap.org"],
         connectSrc: ["'self'", "challenges.cloudflare.com", "nominatim.openstreetmap.org"],
@@ -101,6 +116,15 @@ async function start() {
   // API routes
   app.route("/api/pins", pinsRouter);
   app.route("/api/admin", adminRouter);
+
+  // Global API 404 handler
+  app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
+
+  // Global error handler — prevent stack trace leaks
+  app.onError((err, c) => {
+    console.error("Unhandled error:", err.message);
+    return c.json({ error: "Internal server error" }, 500);
+  });
 
   // Serve client static build in production
   const clientDist = join(__dirname, "../../client/dist");

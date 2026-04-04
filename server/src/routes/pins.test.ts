@@ -33,6 +33,7 @@ function makeApp(env: Record<string, string> = {}) {
   app.use("/*", async (c, next) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     c.set("db", mockDb as any);
+    c.set("clientIp", c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1");
     await next();
   });
   app.route("/api/pins", pinsRouter);

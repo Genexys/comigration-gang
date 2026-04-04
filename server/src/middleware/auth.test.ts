@@ -10,6 +10,10 @@ function makeApp(password?: string) {
     delete process.env.ADMIN_PASSWORD;
   }
   const app = new Hono<AppEnv>();
+  app.use("/*", async (c, next) => {
+    c.set("clientIp", "127.0.0.1");
+    await next();
+  });
   app.use("/protected", adminAuth);
   app.get("/protected", (c) => c.json({ ok: true }));
   return app;
