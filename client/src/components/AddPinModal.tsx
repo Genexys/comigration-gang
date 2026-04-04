@@ -125,7 +125,6 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
             <a href="/privacy" target="_blank" rel="noopener noreferrer">
               политикой конфиденциальности
             </a>
-            {" "}— ник, геолокация и IP сохранятся на сервере
           </span>
         </label>
         <div className="modal-actions">
