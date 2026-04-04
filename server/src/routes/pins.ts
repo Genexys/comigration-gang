@@ -12,11 +12,16 @@ function pins(db: Db): Collection<PinDoc> {
 }
 
 function stripHtml(str: string): string {
-  return str
-    .replace(/<[^>]*>/g, "")
-    .replace(/&(?:#(\d+)|#x([0-9a-f]+)|(\w+));/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  // 1. Decode numeric HTML entities to chars, then strip tags
+  const decoded = str
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/gi, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&(amp|lt|gt|quot|apos);/gi, (_, name) => {
+      const map: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+      return map[name.toLowerCase()] ?? "";
+    });
+  // 2. Strip all HTML tags from decoded text
+  return decoded.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 }
 
 // ~1km in degrees (approx)

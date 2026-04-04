@@ -62,8 +62,8 @@ function MapPage() {
           comment,
           turnstileToken: turnstileToken ?? undefined,
         });
-      } catch (err) {
-        console.error("Failed to add pin:", err);
+      } catch {
+        // error handled by usePins rollback
       }
     },
     [pendingCoords, pendingLocationName, addPin]

@@ -107,6 +107,6 @@ describe("usePins", () => {
     mockFetchPins.mockRejectedValue(new Error("Network error"));
     const { result } = renderHook(() => usePins());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.error).toBe("Network error");
+    expect(result.current.error).toBe("Не удалось загрузить пины");
   });
 });

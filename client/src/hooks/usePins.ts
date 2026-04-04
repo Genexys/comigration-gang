@@ -13,7 +13,7 @@ export function usePins() {
       setPins(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError("Не удалось загрузить пины");
     } finally {
       setLoading(false);
     }

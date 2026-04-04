@@ -13,6 +13,14 @@ function escapeRegex(str: string): string {
 const adminRequests = new Map<string, { count: number; resetAt: number }>();
 const ADMIN_RATE_LIMIT = 100; // 100 requests per minute
 
+// Cleanup stale entries every 5 minutes to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of adminRequests) {
+    if (now > val.resetAt) adminRequests.delete(key);
+  }
+}, 5 * 60_000).unref();
+
 const adminRateLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
   const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const now = Date.now();
@@ -131,8 +139,9 @@ adminRouter.post("/pins/:id/ban-ip", async (c) => {
 
     const deleteResult = await pins(db).deleteMany({ ip: pin.ip });
 
+    const maskedIp = pin.ip?.replace(/\.\d+$/, ".***") ?? "unknown";
     console.log(`[ADMIN] IP banned: ${pin.ip} via pin ${id}, deleted ${deleteResult.deletedCount} pins at ${new Date().toISOString()}`);
-    return c.json({ ok: true, ip: pin.ip, deletedPins: deleteResult.deletedCount });
+    return c.json({ ok: true, ip: maskedIp, deletedPins: deleteResult.deletedCount });
   } catch (err) {
     console.error("POST /api/admin/ban-ip error:", err);
     return c.json({ error: "Internal server error" }, 500);

@@ -68,7 +68,7 @@ export default function Admin() {
   }
 
   async function handleDelete(id: string, nickname: string) {
-    if (!confirm(`Удалить пин от "${nickname}"?`)) return;
+    if (!confirm(`Удалить пин от «${nickname.slice(0, 30)}»?`)) return;
     try {
       await deletePin(id);
       loadPins();
@@ -78,7 +78,7 @@ export default function Admin() {
   }
 
   async function handleBan(id: string, nickname: string) {
-    if (!confirm(`Забанить IP пользователя "${nickname}" и удалить все его пины?`)) return;
+    if (!confirm(`Забанить IP пользователя «${nickname.slice(0, 30)}» и удалить все его пины?`)) return;
     try {
       const result = await banIp(id);
       alert(`IP ${result.ip} забанен. Удалено пинов: ${result.deletedPins}`);

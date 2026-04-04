@@ -35,6 +35,11 @@ RUN pnpm install --prod --frozen-lockfile
 # Copy client build next to server so the path ../../client/dist resolves
 COPY --from=client-build /app/client/dist /app/client/dist
 
+# Run as non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
 WORKDIR /app
 EXPOSE 3001
 CMD ["node", "server/dist/index.js"]

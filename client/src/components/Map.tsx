@@ -22,8 +22,10 @@ function createClusterIcon(cluster: { getChildCount(): number }) {
   let size = "small";
   if (count >= 20) size = "large";
   else if (count >= 8) size = "medium";
+  const el = document.createElement("div");
+  el.textContent = String(count);
   return L.divIcon({
-    html: `<div>${count}</div>`,
+    html: el.outerHTML,
     className: `marker-cluster marker-cluster-${size}`,
     iconSize: [48, 48],
   });

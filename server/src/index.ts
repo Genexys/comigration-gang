@@ -106,11 +106,10 @@ async function start() {
   const clientDist = join(__dirname, "../../client/dist");
   if (existsSync(clientDist)) {
     const relRoot = relative(process.cwd(), clientDist);
+    // Cache index.html in memory — avoid readFileSync on every 404
+    const indexHtml = readFileSync(join(clientDist, "index.html"), "utf-8");
     app.use("/*", serveStatic({ root: relRoot }));
-    app.get("/*", (c) => {
-      const html = readFileSync(join(clientDist, "index.html"), "utf-8");
-      return c.html(html);
-    });
+    app.get("/*", (c) => c.html(indexHtml));
     console.log("Serving static client from", clientDist);
   }
 
