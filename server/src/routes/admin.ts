@@ -82,7 +82,7 @@ adminRouter.get("/pins", async (c) => {
       lat: doc.lat,
       lng: doc.lng,
       comment: doc.comment,
-      ip: doc.ip,
+      ip: doc.ip?.replace(/\.\d+$/, ".***") ?? "—",
       createdAt: doc.createdAt.toISOString(),
     }));
 
@@ -140,8 +140,7 @@ adminRouter.post("/pins/:id/ban-ip", async (c) => {
     const deleteResult = await pins(db).deleteMany({ ip: pin.ip });
 
     const maskedIp = pin.ip?.replace(/\.\d+$/, ".***") ?? "unknown";
-    const logIp = pin.ip?.replace(/\.\d+$/, ".***") ?? "unknown";
-    console.log(`[ADMIN] IP banned: ${logIp} via pin ${id}, deleted ${deleteResult.deletedCount} pins at ${new Date().toISOString()}`);
+    console.log(`[ADMIN] IP banned: ${maskedIp} via pin ${id}, deleted ${deleteResult.deletedCount} pins at ${new Date().toISOString()}`);
     return c.json({ ok: true, ip: maskedIp, deletedPins: deleteResult.deletedCount });
   } catch (err) {
     console.error("POST /api/admin/ban-ip error:", err);
