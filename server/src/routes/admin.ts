@@ -148,3 +148,47 @@ adminRouter.post("/pins/:id/ban-ip", async (c) => {
     return c.json({ error: "Internal server error" }, 500);
   }
 });
+
+// POST /api/admin/geocode-cities — reverse geocode pins that have coordinates as city names
+adminRouter.post("/geocode-cities", async (c) => {
+  try {
+    const db = c.get("db");
+    // Find pins where city looks like coordinates (e.g. "55.2242, 36.6469")
+    const docs = await pins(db)
+      .find({ city: { $regex: /^-?\d+\.\d+,\s*-?\d+\.\d+$/ } })
+      .toArray();
+
+    if (docs.length === 0) {
+      return c.json({ ok: true, updated: 0, message: "No coordinate-based cities found" });
+    }
+
+    let updated = 0;
+    for (const doc of docs) {
+      // Respect Nominatim rate limit: 1 req/sec
+      await new Promise((r) => setTimeout(r, 1100));
+
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${doc.lat}&lon=${doc.lng}&format=json&accept-language=ru,en&zoom=10`,
+          { headers: { "User-Agent": "comigration-gang/1.0" } }
+        );
+        const data = (await res.json()) as { address?: Record<string, string>; display_name?: string };
+        const addr = data?.address;
+        const city = addr?.city || addr?.town || addr?.village || addr?.state || data?.display_name;
+
+        if (city && city !== doc.city) {
+          await pins(db).updateOne({ _id: doc._id }, { $set: { city } });
+          console.log(`[GEOCODE] ${doc.city} → ${city}`);
+          updated++;
+        }
+      } catch {
+        console.warn(`[GEOCODE] Failed for pin ${doc._id}`);
+      }
+    }
+
+    return c.json({ ok: true, found: docs.length, updated });
+  } catch (err) {
+    console.error("POST /api/admin/geocode-cities error:", err);
+    return c.json({ error: "Internal server error" }, 500);
+  }
+});
