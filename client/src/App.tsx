@@ -25,9 +25,23 @@ function MapPage() {
 
   const handleMapClick = useCallback((lat: number, lng: number, name?: string) => {
     setPendingCoords({ lat, lng });
-    setPendingLocationName(name ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
     setPlacingMode(false);
     setModalOpen(true);
+
+    if (name) {
+      setPendingLocationName(name);
+    } else {
+      // Reverse geocode to get city name from coordinates
+      setPendingLocationName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru,en&zoom=10`)
+        .then((res) => res.json())
+        .then((data) => {
+          const addr = data?.address;
+          const city = addr?.city || addr?.town || addr?.village || addr?.state || data?.display_name;
+          if (city) setPendingLocationName(city);
+        })
+        .catch(() => {}); // keep coordinates as fallback
+    }
   }, []);
 
   const handleLocationSelect = useCallback((lat: number, lng: number, name: string) => {
