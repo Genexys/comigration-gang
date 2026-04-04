@@ -1,9 +1,18 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import type { Db, Collection } from "mongodb";
-import { PinDoc, toPublic } from "../models/Pin.js";
+import { PinDoc, PinPublic, toPublic } from "../models/Pin.js";
 import { pinRateLimit } from "../middleware/rateLimit.js";
 import { containsProfanity } from "../utils/profanity.js";
 import type { AppEnv } from "../types.js";
+
+// ── SSE pub/sub for real-time pin updates ──────────────────────────────────
+type PinListener = (pin: PinPublic) => void;
+const listeners = new Set<PinListener>();
+
+function broadcastNewPin(pin: PinPublic) {
+  for (const fn of listeners) fn(pin);
+}
 
 export const pinsRouter = new Hono<AppEnv>();
 
@@ -166,9 +175,37 @@ pinsRouter.post("/", pinRateLimit, async (c) => {
 
     cachedPins = null;
 
-    return c.json(toPublic(doc), 201);
+    const publicPin = toPublic(doc);
+    broadcastNewPin(publicPin);
+
+    return c.json(publicPin, 201);
   } catch (err) {
     console.error("POST /api/pins error:", err);
     return c.json({ error: "Internal server error" }, 500);
   }
+});
+
+// GET /api/pins/stream — SSE for real-time pin updates
+pinsRouter.get("/stream", (c) => {
+  return streamSSE(c, async (stream) => {
+    // Send heartbeat to keep connection alive
+    const heartbeat = setInterval(() => {
+      stream.writeSSE({ event: "ping", data: "" }).catch(() => {});
+    }, 30_000);
+
+    const onNewPin: PinListener = (pin) => {
+      stream.writeSSE({ event: "new-pin", data: JSON.stringify(pin) }).catch(() => {});
+    };
+
+    listeners.add(onNewPin);
+
+    // Keep stream open until client disconnects
+    stream.onAbort(() => {
+      listeners.delete(onNewPin);
+      clearInterval(heartbeat);
+    });
+
+    // Block until abort
+    await new Promise(() => {});
+  });
 });
