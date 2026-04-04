@@ -3,6 +3,7 @@ import type { MiddlewareHandler } from "hono";
 import { ObjectId, type Db, type Collection } from "mongodb";
 import { PinDoc } from "../models/Pin.js";
 import { adminAuth } from "../middleware/auth.js";
+import { maskIp } from "../utils/maskIp.js";
 import type { AppEnv } from "../types.js";
 
 function escapeRegex(str: string): string {
@@ -82,7 +83,7 @@ adminRouter.get("/pins", async (c) => {
       lat: doc.lat,
       lng: doc.lng,
       comment: doc.comment,
-      ip: doc.ip?.replace(/\.\d+$/, ".***") ?? "—",
+      ip: maskIp(doc.ip),
       createdAt: doc.createdAt.toISOString(),
     }));
 
@@ -139,9 +140,9 @@ adminRouter.post("/pins/:id/ban-ip", async (c) => {
 
     const deleteResult = await pins(db).deleteMany({ ip: pin.ip });
 
-    const maskedIp = pin.ip?.replace(/\.\d+$/, ".***") ?? "unknown";
-    console.log(`[ADMIN] IP banned: ${maskedIp} via pin ${id}, deleted ${deleteResult.deletedCount} pins at ${new Date().toISOString()}`);
-    return c.json({ ok: true, ip: maskedIp, deletedPins: deleteResult.deletedCount });
+    const masked = maskIp(pin.ip);
+    console.log(`[ADMIN] IP banned: ${masked} via pin ${id}, deleted ${deleteResult.deletedCount} pins at ${new Date().toISOString()}`);
+    return c.json({ ok: true, ip: masked, deletedPins: deleteResult.deletedCount });
   } catch (err) {
     console.error("POST /api/admin/ban-ip error:", err);
     return c.json({ error: "Internal server error" }, 500);

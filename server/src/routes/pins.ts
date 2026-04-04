@@ -4,6 +4,7 @@ import type { Db, Collection } from "mongodb";
 import { PinDoc, PinPublic, toPublic } from "../models/Pin.js";
 import { pinRateLimit } from "../middleware/rateLimit.js";
 import { containsProfanity } from "../utils/profanity.js";
+import { maskIp } from "../utils/maskIp.js";
 import type { AppEnv } from "../types.js";
 
 // ── SSE pub/sub for real-time pin updates ──────────────────────────────────
@@ -122,7 +123,7 @@ pinsRouter.post("/", pinRateLimit, async (c) => {
     // Check IP ban
     const banned = await db.collection("banned_ips").findOne({ ip });
     if (banned) {
-      console.warn(`[SECURITY] Banned IP attempted to post: ${ip.replace(/\.\d+$/, ".***")}`);
+      console.warn(`[SECURITY] Banned IP attempted to post: ${maskIp(ip)}`);
       return c.json({ error: "Доступ заблокирован" }, 403);
     }
 
@@ -133,7 +134,7 @@ pinsRouter.post("/", pinRateLimit, async (c) => {
       }
       const valid = await verifyTurnstile(turnstileToken);
       if (!valid) {
-        console.warn(`[SECURITY] Turnstile failed for IP: ${ip.replace(/\.\d+$/, ".***")}`);
+        console.warn(`[SECURITY] Turnstile failed for IP: ${maskIp(ip)}`);
         return c.json({ error: "Captcha verification failed" }, 400);
       }
     }
