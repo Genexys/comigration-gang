@@ -35,7 +35,8 @@
       "Bash(ls /Users/iliaborisenko/Docs/Projects/comigration-gang/client/node_modules/.pnpm/rolldown*/node_modules/@rolldown/)",
       "Bash(pnpm --filter client test)",
       "Bash(pnpm --filter comigration-server test)",
-      "Bash(npx skills:*)"
+      "Bash(npx skills:*)",
+      "Bash(magick -size 1200x630 'xc:#000000' '\\(' logo.jpg -resize 200x200 '\\)' -gravity center -geometry +0-80 -composite -gravity center -fill '#ffd600' -font Helvetica-Bold -pointsize 64 -annotate +0+60 COMIGRATION -gravity center -fill '#999999' -font Helvetica -pointsize 28 -annotate +0+110 'Карта фанатов · comigration-gang.com' og-image.png)"
     ]
   }
 }
