@@ -14,6 +14,7 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
   const [nickname, setNickname] = useState("");
   const [comment, setComment] = useState("");
   const [nickError, setNickError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileError, setTurnstileError] = useState(false);
   const [consented, setConsented] = useState(false);
@@ -30,6 +31,7 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
       setNickError(false);
       setTurnstileToken(null);
       setTurnstileError(false);
+      setSubmitting(false);
       setConsented(false);
       setConsentError(false);
       setTimeout(() => nickRef.current?.focus(), 100);
@@ -37,6 +39,7 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
   }, [open]);
 
   function handleSubmit() {
+    if (submitting) return;
     const trimmed = nickname.trim();
     if (trimmed.length < 2) {
       setNickError(true);
@@ -51,6 +54,7 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
       setConsentError(true);
       return;
     }
+    setSubmitting(true);
     onSubmit(trimmed, comment.trim(), turnstileToken);
   }
 
@@ -128,7 +132,7 @@ export function AddPinModal({ open, onClose, onSubmit, existingNicknames = [] }:
           <button className="btn-cancel" onClick={onClose}>
             Отмена
           </button>
-          <button className="btn-submit" onClick={handleSubmit}>
+          <button className="btn-submit" onClick={handleSubmit} disabled={submitting}>
             Поставить 📍
           </button>
         </div>

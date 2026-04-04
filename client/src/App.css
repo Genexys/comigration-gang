@@ -369,6 +369,10 @@ body {
   transition: opacity 0.2s;
 }
 .btn-submit:hover { opacity: 0.9; }
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* Custom popup */
 .leaflet-popup-content-wrapper {

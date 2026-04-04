@@ -1,19 +1,18 @@
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
-function getToken(): string {
-  return sessionStorage.getItem("admin_token") || "";
-}
+let _adminToken = "";
 
 export function setAdminToken(token: string) {
-  sessionStorage.setItem("admin_token", token);
+  _adminToken = token;
 }
-
-export function clearAdminToken() {
-  sessionStorage.removeItem("admin_token");
-}
-
 export function hasAdminToken(): boolean {
-  return !!sessionStorage.getItem("admin_token");
+  return _adminToken.length > 0;
+}
+export function clearAdminToken() {
+  _adminToken = "";
+}
+function getToken(): string {
+  return _adminToken;
 }
 
 interface AdminPin {

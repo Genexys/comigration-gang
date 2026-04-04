@@ -1,11 +1,36 @@
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { ObjectId, type Db, type Collection } from "mongodb";
 import { PinDoc } from "../models/Pin.js";
 import { adminAuth } from "../middleware/auth.js";
 import type { AppEnv } from "../types.js";
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Simple in-memory rate limit for admin endpoints
+const adminRequests = new Map<string, { count: number; resetAt: number }>();
+const ADMIN_RATE_LIMIT = 100; // 100 requests per minute
+
+const adminRateLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const now = Date.now();
+  const entry = adminRequests.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    adminRequests.set(ip, { count: 1, resetAt: now + 60000 });
+  } else {
+    entry.count++;
+    if (entry.count > ADMIN_RATE_LIMIT) {
+      return c.json({ error: "Too many requests" }, 429);
+    }
+  }
+  await next();
+};
+
 export const adminRouter = new Hono<AppEnv>();
-adminRouter.use("/*", adminAuth);
+adminRouter.use("/*", adminRateLimit, adminAuth);
 
 function pins(db: Db): Collection<PinDoc> {
   return db.collection<PinDoc>("pins");
@@ -24,7 +49,7 @@ adminRouter.get("/pins", async (c) => {
     const filter: Record<string, unknown> = {};
 
     if (search) {
-      filter.nickname = { $regex: search, $options: "i" };
+      filter.nickname = { $regex: escapeRegex(search), $options: "i" };
     }
 
     if (dateFilter === "today") {
@@ -75,6 +100,7 @@ adminRouter.delete("/pins/:id", async (c) => {
       return c.json({ error: "Pin not found" }, 404);
     }
 
+    console.log(`[ADMIN] Pin deleted: ${id} at ${new Date().toISOString()}`);
     return c.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/admin/pins error:", err);
@@ -105,6 +131,7 @@ adminRouter.post("/pins/:id/ban-ip", async (c) => {
 
     const deleteResult = await pins(db).deleteMany({ ip: pin.ip });
 
+    console.log(`[ADMIN] IP banned: ${pin.ip} via pin ${id}, deleted ${deleteResult.deletedCount} pins at ${new Date().toISOString()}`);
     return c.json({ ok: true, ip: pin.ip, deletedPins: deleteResult.deletedCount });
   } catch (err) {
     console.error("POST /api/admin/ban-ip error:", err);

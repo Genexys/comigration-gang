@@ -28,7 +28,11 @@
       "Bash(pnpm remove:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm build:*)",
-      "Bash(cat \"/Users/iliaborisenko/Downloads/Comigration Gang Logs \\(2\\).json\")"
+      "Bash(cat \"/Users/iliaborisenko/Downloads/Comigration Gang Logs \\(2\\).json\")",
+      "Bash(grep:*)",
+      "Bash(rm:*)",
+      "Bash(node:*)",
+      "Bash(ls /Users/iliaborisenko/Docs/Projects/comigration-gang/client/node_modules/.pnpm/rolldown*/node_modules/@rolldown/)"
     ]
   }
 }

@@ -12,7 +12,11 @@ function pins(db: Db): Collection<PinDoc> {
 }
 
 function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "").trim();
+  return str
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(?:#(\d+)|#x([0-9a-f]+)|(\w+));/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // ~1km in degrees (approx)
@@ -50,7 +54,7 @@ pinsRouter.get("/", async (c) => {
   try {
     const now = Date.now();
     if (cachedPins && now - cacheTime < CACHE_TTL) {
-      return c.body(cachedPins, 200, { "Content-Type": "application/json" });
+      return c.body(cachedPins, 200, { "Content-Type": "application/json", "Cache-Control": "public, max-age=30" });
     }
 
     const db = c.get("db");
@@ -59,7 +63,7 @@ pinsRouter.get("/", async (c) => {
     cachedPins = JSON.stringify(publicPins);
     cacheTime = now;
 
-    return c.body(cachedPins, 200, { "Content-Type": "application/json" });
+    return c.body(cachedPins, 200, { "Content-Type": "application/json", "Cache-Control": "public, max-age=30" });
   } catch (err) {
     console.error("GET /api/pins error:", err);
     return c.json({ error: "Internal server error" }, 500);
@@ -86,6 +90,15 @@ pinsRouter.post("/", pinRateLimit, async (c) => {
     }
     if (typeof lng !== "number" || lng < -180 || lng > 180) {
       return c.json({ error: "lng must be between -180 and 180" }, 400);
+    }
+    if (typeof nickname === "string" && nickname.length > 200) {
+      return c.json({ error: "Nickname too long" }, 400);
+    }
+    if (typeof comment === "string" && comment.length > 2000) {
+      return c.json({ error: "Comment too long" }, 400);
+    }
+    if (typeof country === "string" && country.length > 100) {
+      return c.json({ error: "Country too long" }, 400);
     }
 
     const ip =

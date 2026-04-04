@@ -79,7 +79,10 @@ export function LocationSearch({ onSelect, onCancel }: LocationSearchProps) {
   }, [query]);
 
   function handleSelect(r: Result) {
-    onSelect(parseFloat(r.lat), parseFloat(r.lon), r.display_name);
+    const lat = parseFloat(r.lat);
+    const lng = parseFloat(r.lon);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+    onSelect(lat, lng, r.display_name);
     setOpen(false);
     setQuery("");
   }

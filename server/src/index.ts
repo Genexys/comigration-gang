@@ -3,6 +3,7 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
+import { bodyLimit } from "hono/body-limit";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import { join, dirname, relative } from "path";
@@ -33,6 +34,12 @@ async function start() {
     { expireAfterSeconds: 365 * 24 * 60 * 60, background: true }
   );
 
+  // Compound index for dedup query
+  await db.collection("pins").createIndex(
+    { ip: 1, createdAt: -1, lat: 1, lng: 1 },
+    { background: true }
+  );
+
   // Anonymize IPs in pins older than 90 days
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const anonResult = await db.collection("pins").updateMany(
@@ -51,10 +58,14 @@ async function start() {
     await next();
   });
 
+  // Body size limit
+  app.use("/api/*", bodyLimit({ maxSize: 16 * 1024 })); // 16KB max
+
   // Security headers (Helmet equivalent)
   app.use(
     "/*",
     secureHeaders({
+      strictTransportSecurity: "max-age=31536000; includeSubDomains",
       contentSecurityPolicy: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "challenges.cloudflare.com"],
@@ -73,8 +84,19 @@ async function start() {
     cors({
       origin: ALLOWED_ORIGIN.split(",").map((o) => o.trim()),
       allowMethods: ["GET", "POST", "DELETE"],
+      maxAge: 86400,
     })
   );
+
+  // Cache-Control headers for API responses
+  app.use("/api/*", async (c, next) => {
+    await next();
+    if (c.req.method === "GET") {
+      c.header("Cache-Control", "public, max-age=30");
+    } else {
+      c.header("Cache-Control", "no-store");
+    }
+  });
 
   // API routes
   app.route("/api/pins", pinsRouter);
